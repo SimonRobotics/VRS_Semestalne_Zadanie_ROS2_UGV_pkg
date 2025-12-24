@@ -1,0 +1,16 @@
+mavros:
+  ros__parameters:
+
+    fcu_url: "/dev/ttyACM0:57600"
+    gcs_url: ""
+
+    target_system_id: 1
+    target_component_id: 1
+
+    use_sim_time: false
+
+    plugin_whitelist:
+      - sys_status
+      - command
+      - setpoint_velocity
+      - sys_time
