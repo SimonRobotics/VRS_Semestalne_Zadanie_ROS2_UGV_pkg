@@ -5,27 +5,23 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
 
-
-
-
-    config = os.path.join(
-        get_package_share_directory('your_package'),
+    config_cam = os.path.join(
+        get_package_share_directory('tank_bringup'),
         'config',
-        'mavros_uart.yaml'
+        'camera_config.yaml'
     )
 
     return LaunchDescription([
         Node(
             package='tank_control',
             executable='tank_control',
+            namespace='tank_control',
             name='tank_control',
         ),
-        
+
         Node(
-            package='mavros',
-            executable='mavros_node',
-            name='mavros',
-            output='screen',
-            parameters=[config]
+            package='v4l2_camera',
+            executable='v4l2_camera_node',
+            parameters=[config_cam]
         )
     ])

@@ -1,0 +1,5 @@
+camera:
+  ros__parameters:
+    image_size: [1280, 720]
+    pixel_format: yuyv
+    fps: 60
