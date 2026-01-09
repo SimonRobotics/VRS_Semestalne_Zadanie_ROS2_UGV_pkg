@@ -19,6 +19,7 @@ class CmdVelToSerial(Node):
             self.ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
         except:
             print("error while creating serial connection")
+            exit()
 
     def listener_callback(self, msg):
         linear = msg.linear.x
