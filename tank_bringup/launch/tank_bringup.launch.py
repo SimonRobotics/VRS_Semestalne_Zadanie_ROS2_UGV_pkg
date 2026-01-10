@@ -5,11 +5,11 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
 
-    config_cam = os.path.join(
-        get_package_share_directory('tank_bringup'),
-        'config',
-        'camera_config.yaml'
-    )
+    # config_cam = os.path.join(
+    #     get_package_share_directory('tank_bringup'),
+    #     'config',
+    #     'camera_config.yaml'
+    # )
 
     return LaunchDescription([
         Node(
@@ -22,6 +22,5 @@ def generate_launch_description():
         Node(
             package='v4l2_camera',
             executable='v4l2_camera_node',
-            parameters=[config_cam]
         )
     ])
