@@ -6,7 +6,7 @@ from sensor_msgs.msg import Imu
 import serial
 import struct
 
-import struct
+import time
 
 SOF1 = 0xA1
 SOF2 = 0x1A
@@ -16,42 +16,65 @@ class ImuReader(Node):
 
     def __init__(self, port='/dev/ttyACM0', baudrate=38400, timeout=1):
         super().__init__('imu_reader')
-        self.ser = serial.Serial(port, baudrate, timeout=timeout)
-        self.msg = Imu()
 
-        self.ser.reset_input_buffer()
+        self.baudrate = baudrate
+        self.timeout = timeout
+        self.port = port
+
+        self.ser = None
+
+        self.connect_serial()
+
+        self.msg = Imu()
 
         self.publisher_ = self.create_publisher(Imu, 'imu_topic', 10)
         timer_period = 0.004
         self.timer = self.create_timer(timer_period, self.timer_callback)
         
     def timer_callback(self):
-        value = self.read_float_frame(self.ser)
-        self.msg.angular_velocity.z = value
-        self.publisher_.publish(self.msg)
+        if (self.ser == None or not self.ser.is_open):
+            if(self.connect_serial()):
+                value = self.read_float_frame(self.ser)
+                if value != None:
+                    self.msg.angular_velocity.z = value
+                    self.publisher_.publish(self.msg)
 
+    def connect_serial(self):
+        try:
+            self.ser = serial.Serial(self.port, self.baudrate, timeout=self.timeout)
+            self.ser.reset_input_buffer()
+            return True
+        except serial.SerialException:
+            print("Waiting for serial device...")
+            return False
 
     def read_float_frame(self, ser):
-        while True:
-            if ser.read(1)[0] != SOF1:
-                continue
-            if ser.read(1)[0] != SOF2:
-                continue
+        while ser.in_waiting > 0:
+            try:
+                if ser.read(1)[0] != SOF1:
+                    continue
+                if ser.read(1)[0] != SOF2:
+                    continue
 
-            payload_len = ser.read(1)[0]
-            if payload_len != 4:
-                continue
+                payload_len = ser.read(1)[0]
+                if payload_len != 4:
+                    continue
 
-            payload = ser.read(4)
-            crc_rx = ser.read(2)
-            crc_rx = crc_rx[0] | (crc_rx[1] << 8)
+                payload = ser.read(4)
+                crc_rx = ser.read(2)
+                crc_rx = crc_rx[0] | (crc_rx[1] << 8)
 
-            crc_calc = self.crc16_ccitt_false(bytes([SOF1, SOF2, payload_len]) + payload)
+                crc_calc = self.crc16_ccitt_false(bytes([SOF1, SOF2, payload_len]) + payload)
 
-            if crc_rx != crc_calc:
-                continue
+                if crc_rx != crc_calc:
+                    continue
 
-            return struct.unpack('<f', payload)[0]
+                return struct.unpack('<f', payload)[0]
+            except serial.SerialException:
+                print("Error while reading")
+                self.ser = None
+                return None
+        return None
         
     def crc16_ccitt_false(self, data: bytes) -> int:
         crc = 0xFFFF

@@ -3,6 +3,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import Twist
 import serial
 import struct
+import time
 
 
 class CmdVelToSerial(Node):
@@ -10,19 +11,19 @@ class CmdVelToSerial(Node):
 
         super().__init__('tank_control_node')
 
-        buffer = bytearray()
-
+        while True:
+            try:
+                self.ser = serial.Serial('/dev/ttyACM0', 38400, timeout=1)
+                break
+            except serial.SerialException:
+                print("Waiting for serial device...")
+                time.sleep(1)
+        
         self.subscription = self.create_subscription(
             Twist,
             'cmd_vel',
             self.listener_callback,
             10)
-
-        try:
-            self.ser = serial.Serial('/dev/ttyACM0', 38400, timeout=1)
-        except:
-            print("error while creating serial connection")
-            exit()
 
     def listener_callback(self, msg):
         linear = msg.linear.x
@@ -43,7 +44,18 @@ class CmdVelToSerial(Node):
         crc_bytes = struct.pack('<H', crc)  # LSB first
 
         frame = frame_wo_crc + crc_bytes
-        self.ser.write(frame)
+        try:
+            self.ser.write(frame)
+        except:
+            print("droping frame, lost connection")
+            print("trying to reconncet")
+            self.ser.close()
+
+            try:
+                self.ser = serial.Serial('/dev/ttyACM0', 38400, timeout=1)
+            except:
+                print("error while creating serial connection")
+
 
     def crc_ccitt_false(self, data: bytes) -> int:
         crc = 0xFFFF
