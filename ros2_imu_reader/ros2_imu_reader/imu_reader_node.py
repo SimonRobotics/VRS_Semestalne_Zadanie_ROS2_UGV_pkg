@@ -5,8 +5,8 @@ from sensor_msgs.msg import Imu
 
 import serial
 import struct
-
 import time
+
 
 SOF1 = 0xA1
 SOF2 = 0x1A
@@ -32,25 +32,35 @@ class ImuReader(Node):
         self.timer = self.create_timer(timer_period, self.timer_callback)
         
     def timer_callback(self):
-        if (self.ser == None or not self.ser.is_open):
-            if(self.connect_serial()):
-                value = self.read_float_frame(self.ser)
-                if value != None:
-                    self.msg.angular_velocity.z = value
-                    self.publisher_.publish(self.msg)
+        if self.ser is None or not self.ser.is_open:
+            if not self.connect_serial():
+                print("False")
+                return
+
+        value = self.read_float_frame(self.ser)
+        if value is None:
+            return
+
+        self.msg.angular_velocity.z = value
+        self.publisher_.publish(self.msg)
+
 
     def connect_serial(self):
+
         try:
             self.ser = serial.Serial(self.port, self.baudrate, timeout=self.timeout)
             self.ser.reset_input_buffer()
             return True
-        except serial.SerialException:
-            print("Waiting for serial device...")
+        except serial.SerialException as e:
+            print(f"Serial port error: {e}")
+            if self.ser is not None and self.ser.is_open:
+                self.ser.close()
+            time.sleep(1)
             return False
 
     def read_float_frame(self, ser):
-        while ser.in_waiting > 0:
-            try:
+        try:
+            while ser.in_waiting > 0:
                 if ser.read(1)[0] != SOF1:
                     continue
                 if ser.read(1)[0] != SOF2:
@@ -70,11 +80,15 @@ class ImuReader(Node):
                     continue
 
                 return struct.unpack('<f', payload)[0]
-            except serial.SerialException:
-                print("Error while reading")
-                self.ser = None
-                return None
-        return None
+            return None
+        except:
+            print("Error while reading")
+            try:
+                self.ser.close()
+            except:
+                pass
+            
+            return None
         
     def crc16_ccitt_false(self, data: bytes) -> int:
         crc = 0xFFFF
